@@ -1,0 +1,11 @@
+pandas
+numpy
+matplotlib
+scikit-learn
+torch
+torchvision
+unidecode
+ipykernel
+statsmodels
+keras
+tensorflow
