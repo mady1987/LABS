@@ -9,3 +9,4 @@ ipykernel
 statsmodels
 keras
 tensorflow
+prophet
