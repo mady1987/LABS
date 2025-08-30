@@ -1,0 +1,11 @@
+{
+    "python.analysis.extraPaths": [
+        "./python-sdk/src/mcp/server/fast",
+        "./python-sdk/src/mcp/server/fast",
+        "./python-sdk/src/mcp/server/fast",
+        "./python-sdk/src",
+        "./python-sdk/src/mcp/server/fast",
+        "./python-sdk/src/mcp/server/fast",
+         "C:/Learning/Labs/python-sdk"
+    ]
+}
