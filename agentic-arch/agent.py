@@ -1,5 +1,5 @@
 from langchain.agents import Tool, initialize_agent, AgentType
-from langchain_community.llms import Ollama
+from langchain_ollama import OllamaLLM
 import requests
 
 MCP_HTTP = "http://127.0.0.1:8765"
@@ -47,7 +47,14 @@ SYSTEM_RULES = (
 )
 
 def main():
-    llm = Ollama(model="llama3.1")
+    # llm = Ollama(model="llama3.2:3b-instruct-q4_K_M")
+    llm = OllamaLLM(
+        model="llama3.2:3b-instruct-q4_K_M",
+        temperature=0.6,
+        num_ctx=2048,
+        num_predict=400,
+    )
+    
     tools = load_tools_from_mcp()
 
     agent = initialize_agent(
@@ -62,8 +69,8 @@ def main():
     )
 
     query = "Trigger an alert 'Server room temp high' then create a task 'Investigate temperature spike'."
-    result = agent.run(query)
-    print("\nFinal Result:\n", result)
+    result = agent.invoke({"input": query})
+    print(result["output"])
 
 if __name__ == "__main__":
     main()

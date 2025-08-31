@@ -6,3 +6,4 @@ flask
 fastapi
 uvicorn
 git clone https://github.com/modelcontextprotocol/python-sdk.git
+.\venv\Scripts\activate
