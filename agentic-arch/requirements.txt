@@ -1,9 +1,10 @@
 langchain
 langchain-community
+langchain-core
+langchain-ollama
+langgraph
 requests
 python-dotenv
 flask
 fastapi
 uvicorn
-git clone https://github.com/modelcontextprotocol/python-sdk.git
-.\venv\Scripts\activate

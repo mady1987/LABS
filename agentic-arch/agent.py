@@ -1,6 +1,22 @@
-from langchain.agents import Tool, initialize_agent, AgentType
-from langchain_ollama import OllamaLLM
+import os
 import requests
+from langchain.agents import Tool, initialize_agent, AgentType
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+try:
+    # Prefer chat model for LangGraph
+    from langchain_ollama import ChatOllama as _ChatModel
+except Exception:
+    _ChatModel = None
+try:
+    # Fallback text LLM for legacy LangChain agent path
+    from langchain_ollama import OllamaLLM as _TextModel
+except Exception:
+    _TextModel = None
+try:
+    # LangGraph prebuilt ReAct agent (optional)
+    from langgraph.prebuilt import create_react_agent as _create_react_agent
+except Exception:
+    _create_react_agent = None
 
 MCP_HTTP = "http://127.0.0.1:8765"
 
@@ -46,31 +62,80 @@ SYSTEM_RULES = (
     "4) If a tool fails twice or returns an error, explain the failure and stop."
 )
 
-def main():
-    # llm = Ollama(model="llama3.2:3b-instruct-q4_K_M")
-    llm = OllamaLLM(
+def _run_with_langgraph(query: str) -> str:
+    if _create_react_agent is None or _ChatModel is None:
+        raise RuntimeError("LangGraph or ChatOllama not available")
+
+    model = _ChatModel(
         model="llama3.2:3b-instruct-q4_K_M",
         temperature=0.6,
         num_ctx=2048,
         num_predict=400,
     )
-    
-    tools = load_tools_from_mcp()
 
+    tools = load_tools_from_mcp()
+    app = _create_react_agent(model, tools)
+
+    res = app.invoke({
+        "messages": [
+            SystemMessage(content=SYSTEM_RULES),
+            HumanMessage(content=query),
+        ]
+    })
+    msgs = res.get("messages", [])
+    # Grab the last AI response
+    for m in reversed(msgs):
+        if isinstance(m, AIMessage):
+            return m.content or ""
+    # Fallback to stringifying last message
+    return str(msgs[-1].content) if msgs else ""
+
+
+def _run_with_langchain_agent(query: str) -> str:
+    if _TextModel is None:
+        raise RuntimeError("Ollama text model not available for legacy agent path")
+
+    llm = _TextModel(
+        model="llama3.2:3b-instruct-q4_K_M",
+        temperature=0.6,
+        num_ctx=2048,
+        num_predict=400,
+    )
+
+    tools = load_tools_from_mcp()
     agent = initialize_agent(
         tools=tools,
         llm=llm,
         agent=AgentType.CHAT_ZERO_SHOT_REACT_DESCRIPTION,
         verbose=True,
         handle_parsing_errors=True,
-        max_iterations=4,                     # hard stop to avoid loops
-        early_stopping_method="generate",     # produce best answer on stop
+        max_iterations=4,
+        early_stopping_method="generate",
         agent_kwargs={"system_message": SYSTEM_RULES},
     )
-
-    query = "Trigger an alert 'Server room temp high' then create a task 'Investigate temperature spike'."
     result = agent.invoke({"input": query})
-    print(result["output"])
+    return result.get("output", "")
+
+
+def main():
+    query = "Trigger an alert 'Server room temp high' then create a task 'Investigate temperature spike'."
+
+    use_langgraph = os.getenv("USE_LANGGRAPH", "1").strip() not in {"0", "false", "False"}
+    try:
+        if use_langgraph:
+            output = _run_with_langgraph(query)
+        else:
+            output = _run_with_langchain_agent(query)
+    except Exception as e:
+        # Fallback: if LangGraph path fails, try legacy agent once
+        if use_langgraph:
+            try:
+                output = _run_with_langchain_agent(query)
+            except Exception:
+                raise e
+        else:
+            raise e
+    print(output)
 
 if __name__ == "__main__":
     main()
