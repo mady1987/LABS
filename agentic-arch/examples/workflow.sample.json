@@ -1,0 +1,49 @@
+{
+  "workflowName": "SampleWorkflow2",
+  "description": "Sample workflow for demonstration",
+  "app": "Agent Orc",
+  "contexts": [
+    {
+      "key": "REQUESTER",
+      "description": "Person who requested the workflow",
+      "dataType": "STRING"
+    }
+  ],
+  "tasks": [
+    {
+      "name": "SUBMIT_REQUEST",
+      "description": "Submit initial request",
+      "taskType": "MANUAL",
+      "assignmentType": "USER",
+      "sequence": 1,
+      "outcomes": [
+        {
+          "name": "SUBMITTED",
+          "description": "Request has been submitted",
+          "nextTask": "REVIEW_REQUEST"
+        }
+      ]
+    },
+    {
+      "name": "REVIEW_REQUEST",
+      "description": "Review the submitted request",
+      "taskType": "MANUAL",
+      "assignmentType": "GROUP",
+      "sequence": 2,
+      "outcomes": [
+        {
+          "name": "APPROVED",
+          "nextTask": null
+        },
+        {
+          "name": "NEEDS_INFO",
+          "nextTask": "SUBMIT_REQUEST"
+        }
+      ]
+    }
+  ],
+  "startInstance": false,
+  "initialContext": {
+    "REQUESTER": "alice@example.com"
+  }
+}
