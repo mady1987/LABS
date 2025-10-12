@@ -2,11 +2,11 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY model_deployment/requirements.txt .
 
-COPY main.py .
+COPY model_deployment/main.py .
 
-COPY logistic_regression_iris_model.joblib .
+COPY model_deployment/logistic_regression_iris_model.joblib .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
