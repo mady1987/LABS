@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-COPY prod/main.py .
+COPY main.py .
 
 COPY logistic_regression_iris_model.joblib .
 
