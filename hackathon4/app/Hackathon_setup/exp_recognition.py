@@ -1,3 +1,4 @@
+import joblib
 import numpy as np
 import cv2
 from matplotlib import pyplot as plt
@@ -65,5 +66,21 @@ def get_expression(img):
         face = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
     
     # YOUR CODE HERE, return expression using your model
+    feature_net = BanuExpressionCNN().to(device)
+    # model = torch.load(current_path + '/best_expression_cnn.pth', map_location=device)
+    model = torch.load(current_path + '/expression_model.t7', map_location=device)
+    if "state_dict" in model:
+        model = model["state_dict"]
+    elif "net_dict" in model:
+        model = model["net_dict"]
+    feature_net.load_state_dict(model)
+    feature_net.eval()
+    face1 = trnscm(face).unsqueeze(0)
+    with torch.no_grad():
+        face1 = face1.to(device)
+        output1 = feature_net(face1) 
+        predicted_class = classes[output1.argmax(dim=1).item()]
+        return predicted_class
+
 
     return "YET TO BE CODED"
