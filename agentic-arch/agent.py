@@ -1,23 +1,18 @@
 import os
+import json
 import requests
 from langchain.agents import Tool, initialize_agent, AgentType
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-try:
-    # Prefer chat model for LangGraph
-    from langchain_ollama import ChatOllama as _ChatModel
-except Exception:
-    _ChatModel = None
-try:
-    # Fallback text LLM for legacy LangChain agent path
-    from langchain_ollama import OllamaLLM as _TextModel
-except Exception:
-    _TextModel = None
+
 try:
     # LangGraph prebuilt ReAct agent (optional)
     from langgraph.prebuilt import create_react_agent as _create_react_agent
 except Exception:
     _create_react_agent = None
 
+
+import os
+from openai import OpenAI
 MCP_HTTP = "http://127.0.0.1:8765"
 
 # ---- Anti-repeat guard ------------------------------------------------------
@@ -95,17 +90,21 @@ def _run_with_langchain_agent(query: str) -> str:
     if _TextModel is None:
         raise RuntimeError("Ollama text model not available for legacy agent path")
 
-    llm = _TextModel(
-        model="llama3.2:3b-instruct-q4_K_M",
-        temperature=0.6,
-        num_ctx=2048,
-        num_predict=400,
-    )
+    # llm = _TextModel(
+    #     model="llama3.2:3b-instruct-q4_K_M",
+    #     temperature=0.6,
+    #     num_ctx=2048,
+    #     num_predict=400,
+    # )
+
+
+    # Fetch API key from environment variable
+    client = OpenAI() 
 
     tools = load_tools_from_mcp()
     agent = initialize_agent(
         tools=tools,
-        llm=llm,
+        llm=client,
         agent=AgentType.CHAT_ZERO_SHOT_REACT_DESCRIPTION,
         verbose=True,
         handle_parsing_errors=True,
@@ -118,7 +117,54 @@ def _run_with_langchain_agent(query: str) -> str:
 
 
 def main():
-    query = "Trigger an alert 'Server room temp high' then create a task 'Investigate temperature spike'."
+    # Orchestrated mode: execute external workflow JSON step-by-step (no LLM decisions)
+    if os.getenv("ORCHESTRATED_MODE", "0").strip() in {"1", "true", "True"}:
+        from .orchestrated_runner import OrchestratedRunner
+        runner = OrchestratedRunner.load_from_env()
+        results = runner.run()
+        # Print concise summary
+        ok = all(item.get("ok") for item in results) if results else True
+        print({
+            "mode": "orchestrated",
+            "ok": ok,
+            "results": results,
+        })
+        return
+
+    # Default: LLM-driven agent with MCP tools
+    query = os.getenv(
+        "AGENT_QUERY",
+        "Trigger an alert 'Server room temp high' then create a task 'Investigate temperature spike'.",
+    )
+
+    # If a workflow file/url is provided (but not in orchestrated mode),
+    # load it and include as context for the LLM to follow.
+    wf_data = None
+    wf_url = os.getenv("WORKFLOW_URL")
+    wf_file = os.getenv("WORKFLOW_FILE")
+    if wf_url or wf_file:
+        try:
+            if wf_url:
+                r = requests.get(wf_url)
+                r.raise_for_status()
+                wf_data = r.json()
+            elif wf_file and os.path.exists(wf_file):
+                with open(wf_file, "r", encoding="utf-8") as f:
+                    wf_data = json.load(f)
+        except Exception as e:
+            # Do not hard fail; continue without workflow context
+            wf_data = None
+
+    if wf_data is not None:
+        # Provide explicit guidance for the agent on how to use tools
+        wf_blob = json.dumps(wf_data, ensure_ascii=False)
+        query = (
+            "You are given a workflow orchestration system in JSON. "
+            "Follow it step-by-step. For manual tasks, summarize the step. "
+            "When automation is implied or tools are named, use the available tools exactly once per unique input.\n\n"
+            f"Workflow JSON:\n{wf_blob}\n\n"
+            f"User Task/Goal: {query}"
+        )
 
     use_langgraph = os.getenv("USE_LANGGRAPH", "1").strip() not in {"0", "false", "False"}
     try:

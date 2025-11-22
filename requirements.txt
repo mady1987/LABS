@@ -10,3 +10,4 @@ statsmodels
 keras
 tensorflow
 prophet
+Pillow

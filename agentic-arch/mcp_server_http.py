@@ -1,13 +1,13 @@
 from fastapi import FastAPI, Body
 from pydantic import BaseModel
-from tools.common_tools import trigger_alert, create_task
+from tools.common_tools import configure_workflow, complete_task 
 
 app = FastAPI(title="MCP HTTP Bridge")
 
 # A tiny registry so the agent can call tools by name over HTTP
 TOOL_REGISTRY = {
-    "trigger_alert": trigger_alert,
-    "create_task": create_task,
+    "configure_workflow": configure_workflow,
+    "complete_task": complete_task
 }
 
 class InvokeRequest(BaseModel):

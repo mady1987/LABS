@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    image: myapp:local
+    container_name: myapp
+    ports:
+      - "8001:8001"
+    env_file: .env
+    # volumes:
+    #   - .:/app   # (optional) live-mount for dev; remove for prod parity
